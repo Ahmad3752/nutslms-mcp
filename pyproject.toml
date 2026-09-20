@@ -1,0 +1,24 @@
+[project]
+name = "moodle-mcp"
+version = "0.1.0"
+description = "Run your university Moodle LMS from an agent: deadlines, documents, grades, submissions."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["moodle", "mcp", "lms", "university", "agent"]
+dependencies = [
+    "mcp>=1.2",  # works on both SDK v1 (FastMCP) and v2 (MCPServer)
+]
+
+[project.optional-dependencies]
+pdf = ["pypdf>=4.0"]
+
+[project.scripts]
+moodle-mcp = "moodle_mcp.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/moodle_mcp"]

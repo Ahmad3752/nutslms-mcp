@@ -1,0 +1,20 @@
+# secrets — never commit
+.env
+token.json
+*.token
+.mcp.json
+cookies.txt
+
+# build / env
+.venv/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+
+# fetched data and exploration output
+out/
+scratch/
+nust-ca-bundle.pem
+openssl-legacy.cnf

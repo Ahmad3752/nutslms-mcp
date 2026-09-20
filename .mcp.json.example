@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "moodle": {
+      "command": "moodle-mcp",
+      "args": ["serve"],
+      "env": {
+        "MOODLE_URL": "https://lms.nust.edu.pk"
+      }
+    }
+  }
+}
