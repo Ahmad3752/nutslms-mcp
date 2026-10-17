@@ -95,16 +95,20 @@ def _aia_urls(der: bytes) -> list[str]:
     return [u.decode("ascii", "ignore") for u in found]
 
 
-def _fetch_missing_intermediate(host: str, port: int = 443) -> Path | None:
+def _fetch_missing_intermediate(host: str, port: int = 443,
+                                refresh: bool = False) -> Path | None:
     """Recover the intermediate the server failed to send, and cache a bundle.
 
     Returns a PEM file of system roots plus the recovered intermediate, or None
     if recovery was not possible (in which case we fail closed, never insecure).
+    With refresh=True a cached bundle is discarded and rebuilt.
     """
     CACHE.mkdir(parents=True, exist_ok=True)
     bundle = CACHE / f"{host}-chain.pem"
     if bundle.exists():
-        return bundle
+        if not refresh:
+            return bundle
+        bundle.unlink()
 
     der = _peek_leaf(host, port)
     if not der:
@@ -152,7 +156,7 @@ class Moodle:
         self.token = token or os.environ.get("MOODLE_TOKEN") or ""
         self.timeout = timeout
         self._ctx = _legacy_context()
-        self._repaired = False
+        self._repairs = 0
         self._siteinfo: dict | None = None
 
     # -- transport ---------------------------------------------------------
@@ -165,10 +169,14 @@ class Moodle:
                 return r.read()
         except urllib.error.URLError as e:
             broken_chain = isinstance(e.reason, ssl.SSLCertVerificationError)
-            if broken_chain and not self._repaired:
-                # Server omitted its intermediate. Repair trust, then retry once.
-                self._repaired = True
-                bundle = _fetch_missing_intermediate(self.host)
+            if broken_chain and self._repairs < 2:
+                # Server omitted its intermediate. Repair trust, then retry. If
+                # a cached bundle still fails, the cert was renewed and the
+                # intermediate changed: re-fetch it and retry once more.
+                cached = (CACHE / f"{self.host}-chain.pem").exists()
+                refresh = self._repairs == 1
+                self._repairs = 1 if cached and not refresh else 2
+                bundle = _fetch_missing_intermediate(self.host, refresh=refresh)
                 if bundle:
                     self._ctx = _legacy_context(bundle)
                     return self._open(req)

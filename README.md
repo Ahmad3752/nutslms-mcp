@@ -47,6 +47,8 @@ else still works.
 
 ## Authenticate
 
+`MOODLE_URL` is the site root, e.g. `https://lms.nust.edu.pk` (no `/portal`).
+
 ```bash
 export MOODLE_URL=https://lms.your-university.edu
 moodle-mcp login          # prompts, caches a token in ~/.cache/moodle-mcp
