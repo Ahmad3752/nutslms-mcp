@@ -1,17 +1,22 @@
 [project]
-name = "moodle-mcp"
-version = "0.1.0"
+name = "nutslms-mcp"
+version = "0.2.0"
 description = "Run your university Moodle LMS from an agent: deadlines, documents, grades, submissions."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["moodle", "mcp", "lms", "university", "agent"]
+keywords = ["moodle", "mcp", "lms", "university", "agent", "nust"]
 dependencies = [
     "mcp>=1.2",  # works on both SDK v1 (FastMCP) and v2 (MCPServer)
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]
-pdf = ["pypdf>=4.0"]
+pdf = []  # kept so old `[pdf]` installs still resolve; pypdf is now a core dependency
+
+[project.urls]
+Homepage = "https://github.com/deeznust42/nutslms-mcp"
+Issues = "https://github.com/deeznust42/nutslms-mcp/issues"
 
 [project.scripts]
 moodle-mcp = "moodle_mcp.cli:main"
@@ -22,3 +27,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/moodle_mcp"]
+
+[dependency-groups]
+dev = ["pytest>=8"]

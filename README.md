@@ -1,10 +1,12 @@
-# moodle-mcp
+# Nuts LMS MCP
 
-Run your university's Moodle LMS from an agent. Exposes deadlines, course
-documents, grades and submissions over **MCP**, plus a standalone **CLI**.
+Give your AI agent your university LMS. Ask Claude, Codex, Cursor or any
+other agent what's due this week, have it read the lab manual, check your
+grades, pull last year's slides, or submit your assignment, all in plain
+English.
 
-Built and tested against NUST's LMS (`lms.nust.edu.pk`, Moodle 5.1.1), but
-nothing is NUST-specific — point `MOODLE_URL` at any Moodle install.
+Part of [Deez Nust](https://deeznust.com). Built for NUST's LMS
+(`lms.nust.edu.pk`), and it works with **any Moodle** site: set `MOODLE_URL`.
 
 ```
 $ moodle-mcp agenda
@@ -18,134 +20,191 @@ as of 2026-09-20  ·  next 30 days  ·  16 documents read
      found in Group Assignment 1.docx (high confidence)
 ```
 
-## Why this exists
+## What you can ask it
 
-Moodle's calendar and assignment APIs only know about work that was entered as
-a Moodle *activity*. In practice, instructors constantly just upload a Word or
-PowerPoint handout instead — so the deadline exists only as a sentence inside a
-file, invisible to every API and to the student's dashboard.
+Once it's connected, just talk to your agent:
 
-On the account this was built against, the official surfaces reported **zero**
-calendar events and **zero** announcements. Reading the documents surfaced
-three real graded deliverables the LMS itself never showed.
+- "What's due this week? Include anything buried in the course files."
+- "Summarise the Lab 4 manual and tell me what I actually have to submit."
+- "Did my OOP assignment go through? Has it been graded?"
+- "What are my grades so far in every course?"
+- "What did instructors upload or announce in the last 3 days?"
+- "Find every past paper in Data Structures and download them to ~/exams."
+- "Search all my courses for anything about the midterm syllabus."
+- "Make a study plan for this week from my deadlines and the lecture slides."
+- "Submit ~/labs/lab4.pdf to the Lab 4 assignment." (needs writing turned on, see below)
 
-So `agenda` merges three sources: the assignment API, the calendar, and the
-**text inside course documents**. Mined dates are labelled `in document` with a
-confidence rating and the surrounding sentence as evidence — leads to confirm,
-not gospel.
+The agent picks the right tool by itself. For anything the built-in tools
+don't cover, it can call any of Moodle's several hundred web-service functions
+directly, so in practice it can do whatever the Moodle app can.
 
-## Install
+## Setup (2 minutes)
 
-```bash
-uv tool install moodle-mcp          # or: pipx install moodle-mcp
-uvx moodle-mcp agenda               # or run without installing
-```
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/)
+(one line to install), then:
 
-From a checkout: `uv pip install -e ".[pdf]"`.
-The `pdf` extra pulls in `pypdf`; without it, PDFs are skipped and everything
-else still works.
-
-## Authenticate
-
-`MOODLE_URL` is the site root, e.g. `https://lms.nust.edu.pk` (no `/portal`).
+**1. Install**
 
 ```bash
-export MOODLE_URL=https://lms.your-university.edu
-moodle-mcp login          # prompts, caches a token in ~/.cache/moodle-mcp
+uv tool install git+https://github.com/deeznust42/nutslms-mcp
 ```
 
-Or set `MOODLE_USER` / `MOODLE_PASS`, or supply `MOODLE_TOKEN` directly if you
-already have one. Moodle mobile tokens are long-lived; only a password change
-or admin revocation ends them.
+**2. Log in once**
 
-This uses Moodle's standard `moodle_mobile_app` web service — the same API the
-official Moodle phone app uses. If your site has web services disabled, the
-login call will say so and nothing here will work.
+```bash
+moodle-mcp login
+```
 
-## Use it from an agent
+It asks for your LMS username and password, then caches a token in
+`~/.cache/moodle-mcp`. Your password is not stored. Not at NUST? Put your
+site's address in front:
+`MOODLE_URL=https://lms.your-university.edu moodle-mcp login`
+
+**3. Connect your agent** (pick yours)
 
 Claude Code:
 
 ```bash
-claude mcp add moodle -e MOODLE_URL=https://lms.your-university.edu -- moodle-mcp serve
+claude mcp add moodle -- moodle-mcp serve
 ```
 
-Claude Desktop / Cursor / any MCP client — add to the config file:
+Codex:
+
+```bash
+codex mcp add moodle -- moodle-mcp serve
+```
+
+Claude Desktop, Cursor, Windsurf, or any other MCP client: add this to its
+MCP config file (Claude Desktop: Settings → Developer → Edit Config; Cursor:
+`~/.cursor/mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "moodle": {
       "command": "moodle-mcp",
-      "args": ["serve"],
-      "env": { "MOODLE_URL": "https://lms.your-university.edu" }
+      "args": ["serve"]
     }
   }
 }
 ```
 
-Authenticate once with `moodle-mcp login` first; the server picks up the cached
-token, so no credentials need to live in the config file.
+If your app can't find `moodle-mcp`, use the full path that
+`which moodle-mcp` prints. Not at NUST? Add
+`"env": { "MOODLE_URL": "https://lms.your-university.edu" }`, or `--env
+MOODLE_URL=...` on the `claude`/`codex` command.
 
-## Tools
+Restart the agent and ask it "what's due this week?".
+
+## Let it submit (optional)
+
+By default the agent can read everything but **change nothing**. To let it
+submit assignments or do other things that change your LMS, turn writing on:
+
+```bash
+claude mcp add moodle --env MOODLE_ALLOW_WRITE=1 -- moodle-mcp serve
+codex mcp add moodle --env MOODLE_ALLOW_WRITE=1 -- moodle-mcp serve
+```
+
+(or `"MOODLE_ALLOW_WRITE": "1"` under `env` in the JSON config). Even then,
+submitting needs the agent to confirm the exact files with you first, because
+a submission becomes your graded work of record.
+
+## Use it without an agent
+
+The same thing works as a plain terminal tool:
+
+```bash
+moodle-mcp agenda              # everything due, incl. dates found in documents
+moodle-mcp courses             # your courses and their ids
+moodle-mcp contents 1234       # outline of one course
+moodle-mcp assignments         # assignments and due dates
+moodle-mcp grades              # grades so far
+moodle-mcp news --days 3       # what changed recently
+moodle-mcp read "lab 4"        # read a course file as text
+moodle-mcp search midterm --deep
+```
+
+Add `--json` to any command for raw output.
+
+## Tools the agent gets
 
 | Tool | What it does |
 |---|---|
 | `whoami` | Confirm the connection and account |
 | `list_courses` | Enrolled courses with ids |
-| **`agenda`** | **Everything due, including dates mined from documents** |
+| **`agenda`** | **Everything due, including dates found inside documents** |
 | `course_contents` | Sections, activities and files for one course |
 | `find_files` | Locate files by partial name |
 | `read_document` | Any course file as plain text |
 | `download_file` | Save a file to disk |
 | `search_lms` | Search material; `deep=True` searches inside documents |
-| `list_assignments` | Moodle assignments with due dates |
+| `list_assignments` | Assignments with due dates |
 | `assignment_status` | Submitted? graded? which files? |
 | `get_grades` | Grades so far |
 | `announcements` | Recent forum announcements |
-| `whats_new` | Material changed in the last N days — the polling hook |
-| `call_api` | Escape hatch to any of Moodle's ~450 functions |
-| `submit_assignment` | Upload files and submit for grading |
+| `whats_new` | Material changed in the last N days |
+| `call_api` | Any Moodle web-service function (writes need `MOODLE_ALLOW_WRITE=1`) |
+| `submit_assignment` | Upload files and submit for grading (needs `MOODLE_ALLOW_WRITE=1`) |
 
-CLI equivalents: `whoami`, `courses`, `agenda`, `contents`, `assignments`,
-`grades`, `news`, `read`, `search`, plus `serve` and `login`.
+It reads `.docx`, `.pptx`, `.xlsx`, `.pdf`, old `.doc`/`.ppt` and plain text.
 
-Text extraction covers `.docx`, `.pptx`, `.xlsx`, `.pdf`, legacy `.doc`/`.ppt`
-and plain text.
+## Why the agenda finds more than the LMS shows
 
-## Writing is off by default
+Moodle's calendar only knows about work entered as a Moodle activity. A lot of
+instructors just upload a Word file or slide deck that says "submit by Friday",
+so that deadline never shows up on your dashboard.
 
-`submit_assignment` and any mutating `call_api` function are refused unless the
-server runs with `MOODLE_ALLOW_WRITE=1`. Submitting additionally requires an
-explicit `confirm=True`. Read-only is the default because an agent that can
-silently overwrite your graded submission of record is not a good trade.
+`agenda` merges the assignment list, the calendar, and the **text inside every
+course document**. Dates it finds in documents are marked `in document`, with
+a confidence level and the sentence they came from, so you can check them.
+On the account this was built against, the LMS showed zero upcoming events;
+reading the documents found three real graded deliverables.
 
-## Two things this handles that break other clients
+## Settings
 
-Both were found against a real university deployment and are common in the wild.
+| Variable | Default | Meaning |
+|---|---|---|
+| `MOODLE_URL` | `https://lms.nust.edu.pk` | Your Moodle site root |
+| `MOODLE_USER` / `MOODLE_PASS` | none | Log in without the prompt (e.g. on a server) |
+| `MOODLE_TOKEN` | none | Use an existing Moodle mobile token directly |
+| `MOODLE_ALLOW_WRITE` | off | `1` lets the agent change things and submit |
 
-**Incomplete TLS chains.** Many campus servers send only their leaf certificate
-and omit the intermediate, so stock clients fail to verify. Rather than turning
-verification off, this reads the leaf's AIA `CA Issuers` URL, downloads the
-missing intermediate, caches it, and retries against a repaired trust store.
-Verification stays on the whole time; if repair fails it errors out rather than
-connecting insecurely. Old TLS 1.2-only servers without secure renegotiation
-are also accommodated.
+## Privacy and safety
 
-**Responses that aren't quite JSON.** Local plugins sometimes print HTML before
-the JSON body — NUST's emits an HTML comment on *every* web-service response,
-which is enough to break a standard Moodle client. Parsing starts at the first
-structural character.
+- Everything runs on your own computer and talks only to your university's
+  LMS. There is no server in the middle and nothing is sent anywhere else.
+- It signs in through Moodle's official mobile-app web service, the same one
+  the Moodle phone app uses. If your university has turned that off, login will
+  say so.
+- The token lives in `~/.cache/moodle-mcp`. Delete that folder to log out.
+  Changing your LMS password also revokes it.
+- Read-only unless you turn writing on.
 
 ## Caveats
 
-- Mined dates are a best-effort read of prose. `high` confidence means the date
-  sat next to words like *due*, *submission* or *graded*; it is still worth
-  opening the document. `agenda` returns the evidence so you can check.
-- Ambiguous numeric dates are read day-first (`22-09-2026` → 22 September),
-  which is right for most of the world and wrong for US-format courses.
-- The first `agenda` run downloads and parses every course document, so it is
-  slow. Files are cached in `~/.cache/moodle-mcp` afterwards.
+- Dates found in documents are a best-effort read of prose. Open the document
+  before you rely on one; `agenda` gives you the evidence to check.
+- Dates like `05-09-2026` are read day first (5 September), which is right
+  outside the US.
+- The first `agenda` run reads every course document, so it is slow. Files are
+  cached afterwards.
+
+## For developers
+
+```bash
+git clone https://github.com/deeznust42/nutslms-mcp && cd nutslms-mcp
+uv sync && uv run pytest
+```
+
+Two fixes for things that break other Moodle clients on real campus servers:
+
+- **Incomplete TLS chains.** Many campus servers omit their intermediate
+  certificate. Instead of turning verification off, this fetches the missing
+  intermediate from the certificate's AIA URL, caches it, and retries with
+  verification still on (and re-fetches if the cached one goes stale).
+- **Responses that aren't quite JSON.** Some sites print HTML before the JSON
+  body (NUST's does on every call). Parsing starts at the first JSON character.
 
 ## Licence
 
